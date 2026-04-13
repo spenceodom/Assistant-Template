@@ -1,0 +1,8 @@
+# Journal operational files (session-specific, not durable)
+journal/buffer_*.md
+journal/.session_state_*
+journal/.journal_paused_*
+journal/.save_state_*
+
+# Keep .gitkeep for folder tracking
+!journal/.gitkeep
