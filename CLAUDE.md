@@ -27,7 +27,7 @@ Keep these layers separate — they serve different purposes:
 
 Every session, before responding to the first message, work through this checklist in order. Do not skip steps silently. If a step does not apply, say so in the fingerprint.
 
-1. **Buffer flush.** If the preflight hook (`scripts/session-nudge.sh`) emits `[BUFFER FLUSH REQUIRED]`, flush *only* the specifically identified stale buffers. Do **not** sweep all `buffer_*.md` files — others may belong to still-active sessions. For each listed buffer: read it, flush to the correct `journal/YYYY-MM.md` using the date from the entry's `##` header (not today's date), then delete the buffer file. If the hook did not flag any, skip this step.
+1. **Buffer handoff.** If the preflight hook surfaces stale buffer contents, this is your handoff from the previous session. Read the `Open loops` and `Suggested next action` fields — these tell you where to pick up. Flush the buffer to the correct `journal/YYYY-MM.md` using the date from the entry's `##` header (not today's date), then delete the buffer file. If the hook did not flag any stale buffers, skip this step.
 
 2. **Read core canonical files.** Read `self-improving/profile.md`, `self-improving/memory.md`, and `self-improving/corrections.md`. These are HOT tier and always apply.
 
@@ -62,6 +62,7 @@ self-improving/                # CANONICAL — authoritative behavioral memory
 |-- observations.md            # Scratchpad for patterns still being confirmed
 |-- corrections.md             # Recent corrections
 |-- reflections.md             # Self-reflection log
+|-- arcs/                      # Ongoing life narratives (work, family, etc.)
 |-- domains/                   # Topic-specific memory
 |   |-- health-fitness/
 |   |-- gaming/
@@ -72,7 +73,7 @@ self-improving/                # CANONICAL — authoritative behavioral memory
 
 journal/                       # EVIDENCE — append-only session history
 |-- YYYY-MM.md                 # Monthly journal (one per calendar month)
-|-- buffer_{PPID}.md           # Active session scratch (gitignored)
+|-- buffer_{PPID}.md           # Rolling session checkpoint (gitignored)
 |-- .session_state_{PPID}      # Message counter (gitignored)
 `-- .journal_paused_{PPID}     # OTR toggle (gitignored)
 ```
@@ -89,7 +90,29 @@ Most specific wins. Most recent breaks ties at the same level. If patterns contr
 
 The journal is an append-only evidence layer that captures structured session recaps. It exists as a safety net — if something important is discussed but not promoted to canonical memory, it remains searchable in the journal.
 
-Entry format and lifecycle rules live in `journal/README.md`.
+See `journal/README.md` for the full format spec and lifecycle rules.
+
+### Journal Entry Format
+
+When updating `journal/buffer_{PPID}.md` or flushing to `journal/YYYY-MM.md`, use this format:
+
+```markdown
+## YYYY-MM-DD HH:MM - [short topic description]
+Agent: [claude|codex|gemini]
+Domains: [detected domains, comma-separated]
+People: [mentioned people]
+Projects: [active projects]
+Topics: [key topics discussed]
+Active arcs: [which life arcs this session advances, if any — see self-improving/arcs/]
+Decisions:
+- [decisions made during the session]
+Open loops:
+- [unresolved items or questions — keep this current and actionable]
+Suggested next action:
+- [what should happen next if this session ends now]
+Potential promotions:
+- [candidates for promotion to canonical memory]
+```
 
 ### Journal Rules
 
@@ -98,8 +121,9 @@ Entry format and lifecycle rules live in `journal/README.md`.
 3. **Promote conservatively.** Only move items from journal to canonical memory on high-confidence signals: explicit corrections, "remember this", repeated patterns, or obvious durable facts.
 4. **Respect boundaries.** Journal entries follow the same boundary rules as canonical memory (see `.claude/rules/non-negotiables.md`). When in doubt, generalize.
 5. **Off the record.** If the user says "don't log this" or "off the record," do not update the buffer or journal until they say "resume logging." The hook manages a pause flag; respect it.
-6. **Buffer updates are in-place.** When the hook nudges a buffer update, rewrite the buffer as one evolving entry for the current session — do not append multiple fragments.
-7. **Monthly maintenance is optional.** Scanning past journals for missed promotions is encouraged but not required for the system to function.
+6. **Buffer is a rolling checkpoint.** The buffer represents "where things stand now," not a summary written at session end. The hook nudges every ~10 messages as a safety net, but you should also refresh the buffer when you notice meaningful milestones: decisions made, loops opened/closed, topic shifts. Keep `Open loops` and `Suggested next action` current — these are the handoff to the next session.
+7. **Buffer updates are in-place.** When the hook nudges a buffer update, rewrite the buffer as one evolving entry for the current session — do not append multiple fragments.
+8. **Monthly maintenance is optional.** Scanning past journals for missed promotions is encouraged but not required for the system to function.
 
 ## When to Learn
 

@@ -19,7 +19,7 @@ STATE_FILE="$JOURNAL_DIR/.session_state_${SESSION_ID}"
 BUFFER_FILE="$JOURNAL_DIR/buffer_${SESSION_ID}.md"
 PAUSED_FILE="$JOURNAL_DIR/.journal_paused_${SESSION_ID}"
 
-NUDGE_INTERVAL=15
+NUDGE_INTERVAL=10
 MAX_JOURNAL_MATCHES=5
 WARM_GREP_MONTHS=3
 
@@ -49,7 +49,30 @@ for buf in "$JOURNAL_DIR"/buffer_*.md; do
 done
 
 if [ -n "$STALE_BUFFERS" ]; then
-  echo "[BUFFER FLUSH REQUIRED] Stale buffer(s) from ended session(s):${STALE_BUFFERS}. For each listed buffer: read it, flush into the matching journal/YYYY-MM.md (use the date from the entry's ## header, NOT today's date), then delete the buffer file. Do NOT flush buffers not listed here — they may belong to active sessions. Do this before responding to the user's message."
+  # Guardrail: only inject the first stale buffer inline to avoid prompt bloat
+  FIRST_STALE="$(echo "$STALE_BUFFERS" | awk '{print $1}')"
+  REMAINING_STALE="$(echo "$STALE_BUFFERS" | awk '{$1=""; print $0}' | xargs)"
+  MAX_HANDOFF_LINES=50
+
+  echo "[SESSION HANDOFF] Stale buffer from ended session: $FIRST_STALE"
+  echo "This is your handoff from the previous session. Contents below:"
+  echo "---"
+  buf_path="$JOURNAL_DIR/$FIRST_STALE"
+  if [ -f "$buf_path" ]; then
+    LINE_COUNT=$(wc -l < "$buf_path")
+    if [ "$LINE_COUNT" -gt "$MAX_HANDOFF_LINES" ]; then
+      tail -n "$MAX_HANDOFF_LINES" "$buf_path"
+      echo "[TRUNCATED — showing last $MAX_HANDOFF_LINES of $LINE_COUNT lines. Read full file if needed.]"
+    else
+      cat "$buf_path"
+    fi
+  fi
+  echo "---"
+  echo "[ACTION] Read the Open loops and Suggested next action above — these tell you where to pick up. Flush this buffer into journal/YYYY-MM.md (use the date from the entry's ## header, NOT today's date), then delete the buffer file."
+
+  if [ -n "$REMAINING_STALE" ]; then
+    echo "[ADDITIONAL STALE BUFFERS] Also flush these (read them manually):$REMAINING_STALE"
+  fi
 fi
 
 # --- 3. Message counter ---
@@ -95,7 +118,7 @@ detect_domains() {
   if echo "$msg" | grep -qi -E "game|gaming|PC spec|console|stream|pokemon|romhack|playstation|xbox|nintendo|steam"; then
     domains="${domains}gaming,"
   fi
-  if echo "$msg" | grep -qi -E "career|job|colleague|workplace|office|salary|interview|employer|promotion|resume|linkedin"; then
+  if echo "$msg" | grep -qi -E "career|job|colleague|workplace|office|salary|capita|interview|employer|promotion|resume|linkedin"; then
     domains="${domains}work,"
   fi
   if echo "$msg" | grep -qi -E "bank|invest|budget|money|account|portfolio|stock|crypto|robinhood|401k|tax|mortgage|savings|debt"; then
@@ -215,5 +238,8 @@ fi
 
 # --- 8. Buffer update nudge ---
 if [ ! -f "$PAUSED_FILE" ] && [ $((MSG_NUM % NUDGE_INTERVAL)) -eq 0 ]; then
-  echo "[BUFFER UPDATE DUE] Update journal/buffer_${SESSION_ID}.md with a structured summary of this session so far. Use the entry format from journal/README.md. Update in place (one evolving entry per session, not multiple fragments)."
+  echo "[BUFFER UPDATE DUE] Update journal/buffer_${SESSION_ID}.md as your rolling checkpoint. Use the entry format from journal/README.md. Update in place (one evolving entry per session). Keep these sections current — they are the handoff if this session ends unexpectedly:"
+  echo "  - Open loops: unresolved items (keep actionable)"
+  echo "  - Suggested next action: what should happen next"
+  echo "  - Active arcs: which life arcs this session advances (if any)"
 fi

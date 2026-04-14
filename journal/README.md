@@ -28,10 +28,13 @@ Domains: [detected domains, comma-separated]
 People: [mentioned people]
 Projects: [active projects]
 Topics: [key topics discussed]
+Active arcs: [which life arcs this session advances, if any — see self-improving/arcs/]
 Decisions:
 - [decisions made during the session]
 Open loops:
-- [unresolved items or questions]
+- [unresolved items or questions — keep this current and actionable]
+Suggested next action:
+- [what should happen next if this session ends now]
 Potential promotions:
 - [candidates for promotion to canonical memory]
 ```
@@ -55,9 +58,13 @@ If the user says "don't log this" or "off the record":
 
 ## Buffer Lifecycle
 
-1. During a session, the hook nudges the AI to update `buffer_{PPID}.md` every ~15 messages
-2. The buffer is session-aware: each checkpoint **updates in place** (one session = one evolving entry)
-3. If the terminal is closed mid-session, the buffer survives on disk
-4. At the start of the next session, the hook detects non-empty buffer files and emits `[BUFFER FLUSH REQUIRED]`
-5. The AI flushes each buffer into `journal/YYYY-MM.md` and clears the buffer file
-6. PPID-specific scratch files are gitignored; monthly journals are tracked
+The buffer is a **rolling checkpoint** — it always represents "where things stand now," not a summary written at session end. This ensures continuity even if a session ends unexpectedly.
+
+1. The hook nudges the AI to update `buffer_{PPID}.md` every ~10 messages as a **safety net**
+2. Agents should also refresh the buffer at meaningful milestones when they notice them: decisions made, loops opened/closed, topic shifts
+3. The buffer is session-aware: each checkpoint **updates in place** (one session = one evolving entry)
+4. **Keep `Open loops` and `Suggested next action` current** — these are the handoff to the next session
+5. If the terminal is closed mid-session, the buffer survives on disk
+6. At the start of the next session, the hook detects stale buffer files and surfaces their contents directly
+7. The AI reads the stale buffer contents, flushes them into `journal/YYYY-MM.md`, and continues from the listed open loops
+8. PPID-specific scratch files are gitignored; monthly journals are tracked

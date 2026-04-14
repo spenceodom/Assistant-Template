@@ -111,6 +111,9 @@ try:
             if msg.get("role") != "user":
                 continue
             content = msg.get("content", "")
+            # Tool results come as user role with list content — skip them.
+            if isinstance(content, list):
+                continue
             # Slash-command stubs aren't real user turns.
             if isinstance(content, str) and "<command-message>" in content:
                 continue
